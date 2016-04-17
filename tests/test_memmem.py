@@ -1,5 +1,7 @@
 from tests.compat import unittest
 
+from six import b
+
 
 class TestMemmemBase(object):
     def search(self, sequence, subsequence):
@@ -69,20 +71,14 @@ class TestMemmemBase(object):
             self.assertEqual(self.search(subseq, 'aa' + subseq[:-1] + 'aa'), None)
 
 try:
-    from fuzzysearch._pymemmem import simple_memmem, wordlen_memmem, kmp_memmem
+    from fuzzysearch._pymemmem import simple_memmem, wordlen_memmem
 except ImportError:
     pass
 else:
     class TestSimpleMemmem(TestMemmemBase, unittest.TestCase):
         def search(self, subsequence, sequence):
-            return simple_memmem(subsequence, sequence)
-
+            return simple_memmem(b(subsequence), b(sequence))
 
     class TestWordlenMemmem(TestMemmemBase, unittest.TestCase):
         def search(self, subsequence, sequence):
-            return wordlen_memmem(subsequence, sequence)
-
-
-    class TestKmpMemmem(TestMemmemBase, unittest.TestCase):
-        def search(self, subsequence, sequence):
-            return kmp_memmem(subsequence, sequence)
+            return wordlen_memmem(b(subsequence), b(sequence))

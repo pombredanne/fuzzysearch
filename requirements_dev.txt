@@ -1,0 +1,4 @@
+bumpversion
+cython
+sphinx
+tox==2.1.1

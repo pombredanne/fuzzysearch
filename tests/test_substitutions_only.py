@@ -1,4 +1,5 @@
-from fuzzysearch.common import group_matches, get_best_match_in_group
+from fuzzysearch.common import group_matches, Match, get_best_match_in_group, \
+    count_differences_with_maximum
 from fuzzysearch.substitutions_only import \
     has_near_match_substitutions as hnm_subs, \
     find_near_matches_substitutions as fnm_subs, \
@@ -8,8 +9,9 @@ from fuzzysearch.substitutions_only import \
     has_near_match_substitutions_ngrams as hnm_subs_ngrams
 
 from tests.compat import unittest
+from tests.utils import skip_if_arguments_are_unicode
 
-from fuzzysearch.common import Match, count_differences_with_maximum
+from six import b, u
 
 
 class TestSubstitionsOnlyBase(object):
@@ -20,21 +22,21 @@ class TestSubstitionsOnlyBase(object):
         raise NotImplementedError
 
     def test_empty_sequence(self):
-        self.expectedOutcomes(self.search('PATTERN', '', max_subs=0), [])
+        self.expectedOutcomes(self.search(b('PATTERN'), b(''), max_subs=0), [])
 
     def test_empty_subsequence_exeption(self):
         with self.assertRaises(ValueError):
-            self.search('', 'TEXT', max_subs=0)
+            self.search(b(''), b('TEXT'), max_subs=0)
 
     def test_match_identical_sequence(self):
         self.expectedOutcomes(
-            self.search('PATTERN', 'PATTERN', max_subs=0),
+            self.search(b('PATTERN'), b('PATTERN'), max_subs=0),
             [Match(start=0, end=len('PATTERN'), dist=0)],
         )
 
     def test_substring(self):
-        substring = 'PATTERN'
-        text = 'aaaaaaaaaaPATTERNaaaaaaaaa'
+        substring = b('PATTERN')
+        text = b('aaaaaaaaaaPATTERNaaaaaaaaa')
         expected_match = Match(start=10, end=17, dist=0)
 
         self.expectedOutcomes(
@@ -52,30 +54,30 @@ class TestSubstitionsOnlyBase(object):
 
     def test_double_first_item(self):
         self.expectedOutcomes(
-            self.search('def', 'abcddefg', max_subs=1),
+            self.search(b('def'), b('abcddefg'), max_subs=1),
             [Match(start=4, end=7, dist=0)],
         )
 
         self.expectedOutcomes(
-            self.search('def', 'abcddefg', max_subs=2),
+            self.search(b('def'), b('abcddefg'), max_subs=2),
             [Match(start=3, end=6, dist=2),
              Match(start=4, end=7, dist=0)],
         )
 
     def test_two_identical(self):
         self.expectedOutcomes(
-            self.search('abc', 'abcabc', max_subs=1),
+            self.search(b('abc'), b('abcabc'), max_subs=1),
             [Match(start=0, end=3, dist=0), Match(start=3, end=6, dist=0)],
         )
 
         self.expectedOutcomes(
-            self.search('abc', 'abcXabc', max_subs=1),
+            self.search(b('abc'), b('abcXabc'), max_subs=1),
             [Match(start=0, end=3, dist=0), Match(start=4, end=7, dist=0)],
         )
 
     def test_one_changed_in_middle(self):
-        substring = 'abcdefg'
-        pattern = 'abcXefg'
+        substring = b('abcdefg')
+        pattern = b('abcXefg')
         expected_match = Match(start=0, end=7, dist=1)
 
         self.expectedOutcomes(
@@ -94,8 +96,8 @@ class TestSubstitionsOnlyBase(object):
         )
 
     def test_one_missing_in_middle(self):
-        substring = 'PATTERN'
-        text = 'aaaaaaaaaaPATERNaaaaaaaaa'
+        substring = b('PATTERN')
+        text = b('aaaaaaaaaaPATERNaaaaaaaaa')
 
         for max_subs in [0, 1, 2]:
             self.expectedOutcomes(
@@ -104,8 +106,8 @@ class TestSubstitionsOnlyBase(object):
             )
 
     def test_one_changed_in_middle2(self):
-        substring = 'PATTERN'
-        text = 'aaaaaaaaaaPATtERNaaaaaaaaa'
+        substring = b('PATTERN')
+        text = b('aaaaaaaaaaPATtERNaaaaaaaaa')
         expected_match = Match(start=10, end=17, dist=1)
 
         self.expectedOutcomes(
@@ -122,8 +124,8 @@ class TestSubstitionsOnlyBase(object):
         )
 
     def test_one_extra_in_middle(self):
-        substring = 'PATTERN'
-        text = 'aaaaaaaaaaPATTXERNaaaaaaaaa'
+        substring = b('PATTERN')
+        text = b('aaaaaaaaaaPATTXERNaaaaaaaaa')
 
         for max_subs in [0, 1, 2]:
             self.expectedOutcomes(
@@ -133,13 +135,13 @@ class TestSubstitionsOnlyBase(object):
 
     def test_dna_search(self):
         # see: http://stackoverflow.com/questions/19725127/
-        text = ''.join('''\
+        text = b(''.join('''\
             GACTAGCACTGTAGGGATAACAATTTCACACAGGTGGACAATTACATTGAAAATCACAGATTGGT
             CACACACACATTGGACATACATAGAAACACACACACATACATTAGATACGAACATAGAAACACAC
             ATTAGACGCGTACATAGACACAAACACATTGACAGGCAGTTCAGATGATGACGCCCGACTGATAC
             TCGCGTAGTCGTGGGAGGCAAGGCACACAGGGGATAGG
-            '''.split())
-        pattern = 'TGCACTGTAGGGATAACAAT'
+            '''.split()))
+        pattern = b('TGCACTGTAGGGATAACAAT')
 
         self.expectedOutcomes(
             self.search(pattern, text, max_subs=2),
@@ -151,11 +153,11 @@ class TestSubstitionsOnlyBase(object):
         # * BioPython archives from March 14th, 2014
         #   http://lists.open-bio.org/pipermail/biopython/2014-March/009030.html
         # * https://github.com/taleinat/fuzzysearch/issues/3
-        text = ''.join('''\
+        text = b(''.join('''\
             XXXXXXXXXXXXXXXXXXXGGGTTVTTSSAAAAAAAAAAAAAGGGTTLTTSSAAAAAAAAAAAA
             AAAAAAAAAABBBBBBBBBBBBBBBBBBBBBBBBBGGGTTLTTSS
-        '''.split())
-        pattern = "GGGTTLTTSS"
+        '''.split()))
+        pattern = b("GGGTTLTTSS")
 
         self.expectedOutcomes(
             self.search(pattern, text, max_subs=0),
@@ -182,11 +184,11 @@ class TestSubstitionsOnlyBase(object):
         # * BioPython archives from March 14th, 2014
         #   http://lists.open-bio.org/pipermail/biopython/2014-March/009030.html
         # * https://github.com/taleinat/fuzzysearch/issues/3
-        text = ''.join('''\
+        text = b(''.join('''\
             XXXXXXXXXXXXXXXXXXXGGGTTVTTSSAAAAAAAAAAAAAGGGTTVTTSSAAAAAAAAAAA
             AAAAAAAAAAABBBBBBBBBBBBBBBBBBBBBBBBBGGGTTLTTSS
-        '''.split())
-        pattern = "GGGTTLTTSS"
+        '''.split()))
+        pattern = b("GGGTTLTTSS")
 
         self.expectedOutcomes(
             self.search(pattern, text, max_subs=0),
@@ -209,9 +211,33 @@ class TestSubstitionsOnlyBase(object):
 
     def test_missing_at_beginning(self):
         self.expectedOutcomes(
-            self.search("ATTEST", "TESTOSTERONE", max_subs=2),
+            self.search(b("ATTEST"), b("TESTOSTERONE"), max_subs=2),
             [],
         )
+
+    def test_unicode_substring(self):
+        pattern = u('\u03A3\u0393')
+        text = u('\u03A0\u03A3\u0393\u0394')
+        self.expectedOutcomes(
+            self.search(pattern, text, max_subs=0),
+            [Match(1, 3, 0)]
+        )
+
+
+class TestNgramsBase(object):
+    def test_subseq_length_less_than_max_substitutions(self):
+        with self.assertRaises(ValueError):
+            self.search(b('b'), b('abc'), 2)
+
+        with self.assertRaises(ValueError):
+            self.search(b('b'), b('abc'), 5)
+
+        with self.assertRaises(ValueError):
+            self.search(b('PATTERN'), b('PATTERN'), len('PATTERN') + 1)
+
+        with self.assertRaises(ValueError):
+            self.search(b('PATTERN'), b('PATTERN'), len('PATTERN') + 7)
+
 
 
 class TestFindNearMatchesSubstitions(TestSubstitionsOnlyBase,
@@ -243,6 +269,7 @@ class TestFindNearMatchesSubstitionsLinearProgramming(TestSubstitionsOnlyBase,
 
 
 class TestFindNearMatchesSubstitionsNgrams(TestSubstitionsOnlyBase,
+                                           TestNgramsBase,
                                            unittest.TestCase):
     def search(self, subsequence, sequence, max_subs):
         return fnm_subs_ngrams(subsequence, sequence, max_subs)
@@ -259,7 +286,6 @@ class TestFindNearMatchesSubstitionsNgrams(TestSubstitionsOnlyBase,
         return self.assertEqual(best_from_grouped_results,
                                 best_from_grouped_exepected_outcomes,
                                 *args, **kw)
-
 
 
 class TestHasNearMatchSubstitionsOnlyBase(TestSubstitionsOnlyBase):
@@ -279,6 +305,7 @@ class TestHasNearMatchSubstitionsOnly(TestHasNearMatchSubstitionsOnlyBase,
 
 
 class TestHasNearMatchSubstitionsOnlyNgrams(TestHasNearMatchSubstitionsOnlyBase,
+                                            TestNgramsBase,
                                             unittest.TestCase):
     def search(self, subsequence, sequence, max_subs):
         return hnm_subs_ngrams(subsequence, sequence, max_subs)
@@ -307,22 +334,29 @@ else:
             TestHasNearMatchSubstitionsOnlyBase,
             unittest.TestCase
     ):
+        @skip_if_arguments_are_unicode
         def search(self, subsequence, sequence, max_subs):
-            return hnm_subs_lp_byteslike(subsequence, sequence, max_subs)
+            return hnm_subs_lp_byteslike(subsequence, sequence,
+                                         max_subs)
 
     class TestHasNearMatchesSubstitionsNgramsByteslike(
             TestHasNearMatchSubstitionsOnlyBase,
+            TestNgramsBase,
             unittest.TestCase
     ):
+        @skip_if_arguments_are_unicode
         def search(self, subsequence, sequence, max_subs):
-            return hnm_subs_ngrams_byteslike(subsequence, sequence, max_subs)
+            return hnm_subs_ngrams_byteslike(subsequence, sequence,
+                                             max_subs)
 
     class TestFindNearMatchesSubstitionsLpByteslike(
             TestSubstitionsOnlyBase,
             unittest.TestCase
     ):
+        @skip_if_arguments_are_unicode
         def search(self, subsequence, sequence, max_subs):
-            results = fnm_subs_lp_byteslike(subsequence, sequence, max_subs)
+            results = fnm_subs_lp_byteslike(subsequence, sequence,
+                                            max_subs)
             matches = [
                 Match(
                     index,
@@ -344,10 +378,13 @@ else:
 
     class TestFindNearMatchesSubstitionsNgramsByteslike(
             TestSubstitionsOnlyBase,
+            TestNgramsBase,
             unittest.TestCase
     ):
+        @skip_if_arguments_are_unicode
         def search(self, subsequence, sequence, max_subs):
-            results = fnm_subs_ngrams_byteslike(subsequence, sequence, max_subs)
+            results = fnm_subs_ngrams_byteslike(subsequence, sequence,
+                                                max_subs)
             matches = [
                 Match(
                     index,

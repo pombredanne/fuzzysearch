@@ -2,22 +2,48 @@
 fuzzysearch
 ===============================
 
-.. image:: https://badge.fury.io/py/fuzzysearch.png
-    :target: http://badge.fury.io/py/fuzzysearch
+.. image:: https://img.shields.io/pypi/v/fuzzysearch.svg?style=flat
+    :target: https://pypi.python.org/pypi/fuzzysearch
+    :alt: Latest Version
 
-.. image:: https://travis-ci.org/taleinat/fuzzysearch.png?branch=master
-        :target: https://travis-ci.org/taleinat/fuzzysearch
+.. image:: https://img.shields.io/travis/taleinat/fuzzysearch.svg?branch=master
+    :target: https://travis-ci.org/taleinat/fuzzysearch/branches
+    :alt: Build & Tests Status
 
-.. image:: https://coveralls.io/repos/taleinat/fuzzysearch/badge.png
-        :target: https://coveralls.io/r/taleinat/fuzzysearch
+.. image:: https://img.shields.io/coveralls/taleinat/fuzzysearch.svg?branch=master
+    :target: https://coveralls.io/r/taleinat/fuzzysearch?branch=master
+    :alt: Test Coverage
 
-.. image:: https://pypip.in/d/fuzzysearch/badge.png
-        :target: https://crate.io/packages/fuzzysearch?version=latest
+.. image:: https://img.shields.io/pypi/dm/fuzzysearch.svg?style=flat
+    :target: https://pypi.python.org/pypi/fuzzysearch
+    :alt: Downloads
+
+.. image:: https://img.shields.io/pypi/wheel/fuzzysearch.svg?style=flat
+    :target: https://pypi.python.org/pypi/fuzzysearch
+    :alt: Wheels
+
+.. image:: https://img.shields.io/pypi/pyversions/fuzzysearch.svg?style=flat
+    :target: https://pypi.python.org/pypi/fuzzysearch
+    :alt: Supported Python versions
+
+.. image:: https://img.shields.io/pypi/implementation/fuzzysearch.svg?style=flat
+    :target: https://pypi.python.org/pypi/fuzzysearch
+    :alt: Supported Python implementations
+
+.. image:: https://img.shields.io/pypi/l/fuzzysearch.svg?style=flat
+    :target: https://pypi.python.org/pypi/fuzzysearch/
+    :alt: License
 
 fuzzysearch is useful for finding approximate subsequence matches
 
-* Free software: MIT license
+* Free software: `MIT license <LICENSE>`_
 * Documentation: http://fuzzysearch.rtfd.org.
+
+Installation
+------------
+Just install using pip::
+
+    $ pip install fuzzysearch
 
 Features
 --------
@@ -59,8 +85,3 @@ If needed you can choose a specific search implementation, such as
     >>> from fuzzysearch import find_near_matches_with_ngrams
     >>> find_near_matches_with_ngrams(subsequence, sequence, max_distance)
     [Match(start=3, end=24, dist=1)]
-
-License
--------
-.. include:: LICENSE
-   :literal:

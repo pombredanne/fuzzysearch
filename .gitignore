@@ -28,11 +28,19 @@ pip-log.txt
 .tox
 nosetests.xml
 
+# pyenv local versions list
+.python-version
+
 # PyCharm
 .idea
+.PyCharm
 
 # OSX
 .DS_Store
 
 # Generated files
 MANIFEST
+build/
+build_bug/
+dist/
+py*dist/

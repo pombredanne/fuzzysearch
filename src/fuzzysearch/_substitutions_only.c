@@ -5,26 +5,29 @@
 #endif
 
 
+#define DECLARE_VARS
 #define PREPARE
 #define OUTPUT_VALUE(x) DO_FREES; Py_RETURN_TRUE
 #define RETURN_AT_END Py_RETURN_FALSE
 #define FUNCTION_NAME substitutions_only_has_near_matches_lp_byteslike
-#include "fuzzysearch/_substitutions_only_lp_template.h"
+#include "src/fuzzysearch/_substitutions_only_lp_template.h"
 #undef FUNCTION_NAME
 #define FUNCTION_NAME substitutions_only_has_near_matches_ngrams_byteslike
-#include "fuzzysearch/_substitutions_only_ngrams_template.h"
+#include "src/fuzzysearch/_substitutions_only_ngrams_template.h"
 #undef FUNCTION_NAME
 #undef RETURN_AT_END
 #undef OUTPUT_VALUE
 #undef PREPARE
+#undef DECLARE_VARS
 
 
 #ifdef IS_PY3K
 #define PyInt_FromLong(x) PyLong_FromLong(x)
 #endif
+#define DECLARE_VARS       \
+    PyObject *results;     \
+    PyObject *next_result
 #define PREPARE              \
-    PyObject *results;       \
-    PyObject *next_result;   \
     results = PyList_New(0); \
     if (unlikely(!results))  \
         return NULL;
@@ -43,14 +46,15 @@
 } while(0)
 #define RETURN_AT_END return results
 #define FUNCTION_NAME substitutions_only_find_near_matches_lp_byteslike
-#include "fuzzysearch/_substitutions_only_lp_template.h"
+#include "src/fuzzysearch/_substitutions_only_lp_template.h"
 #undef FUNCTION_NAME
 #define FUNCTION_NAME substitutions_only_find_near_matches_ngrams_byteslike
-#include "fuzzysearch/_substitutions_only_ngrams_template.h"
+#include "src/fuzzysearch/_substitutions_only_ngrams_template.h"
 #undef FUNCTION_NAME
 #undef RETURN_AT_END
 #undef OUTPUT_VALUE
 #undef PREPARE
+#undef DECLARE_VARS
 
 
 static PyMethodDef substitutions_only_methods[] = {

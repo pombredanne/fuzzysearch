@@ -1,3 +1,4 @@
-[run]
-source = fuzzysearch
-include = fuzzysearch/*.py
+[paths]
+source =
+    src/fuzzysearch
+    */site-packages/fuzzysearch

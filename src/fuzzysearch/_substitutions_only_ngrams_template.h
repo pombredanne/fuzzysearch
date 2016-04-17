@@ -1,4 +1,4 @@
-#include "fuzzysearch/memmem.h"
+#include "src/fuzzysearch/memmem.h"
 
 #if PY_MAJOR_VERSION >= 3
 #define IS_PY3K
@@ -34,8 +34,19 @@ FUNCTION_NAME(PyObject *self, PyObject *args)
     int subseq_sum;
     int n_differences;
 
+    DECLARE_VARS;
+
     if (!PyArg_ParseTuple(
-        args, "s#s#i",
+        args,
+#ifdef IS_PY3K
+        "y#y#i",
+#else
+    #if PY_HEX_VERSION >= 0x02070000
+        "t#t#i",
+    #else
+        "s#s#i",
+    #endif
+#endif
         &subsequence, &subseq_len,
         &sequence, &seq_len,
         &max_substitutions
@@ -54,6 +65,7 @@ FUNCTION_NAME(PyObject *self, PyObject *args)
     PREPARE;
 
     if (seq_len < subseq_len) {
+        DO_FREES;
         RETURN_AT_END;
     }
 

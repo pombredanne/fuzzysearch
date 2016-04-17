@@ -11,8 +11,19 @@ FUNCTION_NAME(PyObject *self, PyObject *args)
     unsigned int *sub_counts;
     unsigned int seq_idx, subseq_idx, count_idx;
 
+    DECLARE_VARS;
+
     if (!PyArg_ParseTuple(
-        args, "s#s#i",
+        args,
+#ifdef IS_PY3K
+        "y#y#i",
+#else
+    #if PY_HEX_VERSION >= 0x02070000
+        "t#t#i",
+    #else
+        "s#s#i",
+    #endif
+#endif
         &subsequence, &subseq_len,
         &sequence, &seq_len,
         &max_substitutions
@@ -35,6 +46,7 @@ FUNCTION_NAME(PyObject *self, PyObject *args)
     PREPARE;
 
     if (seq_len < subseq_len) {
+        DO_FREES;
         RETURN_AT_END;
     }
 

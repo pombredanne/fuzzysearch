@@ -1,15 +1,28 @@
+sudo: false # use Travis's container-based infrastructure
 language: python
+python:
+  - "3.5"
 install:
-  - pip install tox
   - pip install coveralls
-  - "if [[ $TOXENV == 'py34' ]]; then .travis/py34.sh; fi"
+  - pip install tox==2.1.1
 env:
-  - TOXENV=py26
-  - TOXENV=py27
-  - TOXENV=py32
-  - TOXENV=py33
-  - TOXENV=py34
+  - TOXENV=py26-without_coverage
+  - TOXENV=py27-without_coverage
+  - TOXENV=py32-without_coverage
+  - TOXENV=py33-without_coverage
+  - TOXENV=py34-without_coverage
+  - TOXENV=py35-without_coverage
+  - TOXENV=py26-with_coverage
+  - TOXENV=py27-with_coverage
+  - TOXENV=py32-with_coverage
+  - TOXENV=py33-with_coverage
+  - TOXENV=py34-with_coverage
+  - TOXENV=py35-with_coverage
 script:
   - tox
 after_success:
-  - coveralls
+  case "$TOXENV" in
+    *with_coverage*)
+      coveralls
+      ;;
+  esac
