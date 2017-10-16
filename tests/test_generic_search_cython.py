@@ -1,7 +1,7 @@
 from tests.compat import unittest
-from tests.utils import skip_if_arguments_are_unicode
+from tests.utils import skip_if_arguments_arent_byteslike
 from tests.test_levenshtein import TestFindNearMatchesLevenshteinBase
-from fuzzysearch.common import Match, get_best_match_in_group, group_matches
+from fuzzysearch.common import Match, get_best_match_in_group, group_matches, LevenshteinSearchParams
 from tests.test_substitutions_only import TestSubstitionsOnlyBase
 from tests.test_generic_search import TestGenericSearchBase
 
@@ -17,64 +17,62 @@ except ImportError:
 else:
     class TestGenericSearchLpAsLevenshtein(TestFindNearMatchesLevenshteinBase,
                                            unittest.TestCase):
-        @skip_if_arguments_are_unicode
+        @skip_if_arguments_arent_byteslike
         def search(self, subsequence, sequence, max_l_dist):
             return [
                 get_best_match_in_group(group)
                 for group in group_matches(
                     c_fnm_generic_lp(subsequence,
                                      sequence,
-                                     max_l_dist, max_l_dist,
-                                     max_l_dist, max_l_dist)
+                                     LevenshteinSearchParams(max_l_dist, max_l_dist, max_l_dist, max_l_dist))
                 )
             ]
 
     class TestGenericSearchNgramsAsLevenshtein(
         TestFindNearMatchesLevenshteinBase, unittest.TestCase):
-        @skip_if_arguments_are_unicode
+        @skip_if_arguments_arent_byteslike
         def search(self, subsequence, sequence, max_l_dist):
             return [
                 get_best_match_in_group(group)
                 for group in group_matches(
                     c_fnm_generic_ngrams(subsequence,
                                          sequence,
-                                         max_l_dist, max_l_dist,
-                                         max_l_dist, max_l_dist)
+                                         LevenshteinSearchParams(max_l_dist, max_l_dist, max_l_dist, max_l_dist))
                 )
             ]
 
 
     class TestGenericSearchLpAsSubstitutionsOnly(TestSubstitionsOnlyBase,
                                                  unittest.TestCase):
-        @skip_if_arguments_are_unicode
+        @skip_if_arguments_arent_byteslike
         def search(self, subsequence, sequence, max_subs):
             return list(
                 c_fnm_generic_lp(subsequence,
                                  sequence,
-                                 max_subs, 0, 0, max_subs)
+                                 LevenshteinSearchParams(max_subs, 0, 0, max_subs))
             )
 
         def expectedOutcomes(self, search_results, expected_outcomes,
-                             *args, **kw):
+                             *args, **kwargs):
             return self.assertEqual(search_results, expected_outcomes,
-                                    *args, **kw)
+                                    *args, **kwargs)
 
 
     class TestGenericSearchNgramsAsSubstitutionsOnly(TestSubstitionsOnlyBase,
                                                      unittest.TestCase):
-        @skip_if_arguments_are_unicode
+        @skip_if_arguments_arent_byteslike
         def search(self, subsequence, sequence, max_subs):
             return [
                 get_best_match_in_group(group)
                 for group in group_matches(
                     c_fnm_generic_ngrams(subsequence,
                                          sequence,
-                                         max_subs, 0, 0, max_subs)
+                                         LevenshteinSearchParams(max_subs, 0, 0, max_subs))
                 )
         ]
 
         def expectedOutcomes(self, search_results, expected_outcomes,
-                             *args, **kw):
+                             *args, **kwargs):
             best_from_grouped_results = [
                 get_best_match_in_group(group)
                 for group in group_matches(search_results)
@@ -85,21 +83,23 @@ else:
             ]
             return self.assertEqual(best_from_grouped_results,
                                     best_from_grouped_exepected_outcomes,
-                                    *args, **kw)
+                                    *args, **kwargs)
 
 
     class TestGenericSearchLp(TestGenericSearchBase, unittest.TestCase):
-        @skip_if_arguments_are_unicode
+        @skip_if_arguments_arent_byteslike
         def search(self, pattern, sequence, max_subs, max_ins, max_dels,
                    max_l_dist=None):
             return list(c_fnm_generic_lp(pattern,
                                          sequence,
-                                         max_subs, max_ins,
-                                         max_dels, max_l_dist))
+                                         LevenshteinSearchParams(
+                                             max_subs, max_ins,
+                                             max_dels, max_l_dist,
+                                         )))
 
         def expectedOutcomes(self, search_result, expected_outcomes,
-                             *args, **kw):
-            self.assertEqual(search_result, expected_outcomes, *args, **kw)
+                             *args, **kwargs):
+            self.assertEqual(search_result, expected_outcomes, *args, **kwargs)
 
         def test_double_first_item_two_results(self):
             self.assertEqual(
@@ -127,7 +127,7 @@ else:
             )
 
     class TestGenericSearchNgrams(TestGenericSearchBase, unittest.TestCase):
-        @skip_if_arguments_are_unicode
+        @skip_if_arguments_arent_byteslike
         def search(self, pattern, sequence, max_subs, max_ins, max_dels,
                    max_l_dist=None):
             return [
@@ -135,18 +135,20 @@ else:
                 for group in group_matches(
                     c_fnm_generic_ngrams(pattern,
                                          sequence,
-                                         max_subs, max_ins,
-                                         max_dels, max_l_dist)
+                                         LevenshteinSearchParams(
+                                             max_subs, max_ins,
+                                             max_dels, max_l_dist,
+                                         ))
                 )
             ]
 
         def expectedOutcomes(self, search_result, expected_outcomes,
-                             *args, **kw):
+                             *args, **kwargs):
             best_from_groups = [
                 get_best_match_in_group(group)
                 for group in group_matches(search_result)
             ]
-            self.assertEqual(search_result, best_from_groups, *args, **kw)
+            self.assertEqual(search_result, best_from_groups, *args, **kwargs)
 
         def test_missing_second_item_complex(self):
             self.assertTrue(

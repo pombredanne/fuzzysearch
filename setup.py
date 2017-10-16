@@ -84,24 +84,28 @@ _generic_search_module = Extension(
              'src/fuzzysearch/memmem.c'],
     include_dirs=['.'],
 )
-pymemmem_module = Extension(
-    'fuzzysearch._pymemmem',
-    sources=['src/fuzzysearch/_pymemmem.c',
-             'src/fuzzysearch/memmem.c',
-             'src/fuzzysearch/wordlen_memmem.c'],
-    include_dirs=['.'],
-)
+# pymemmem_module = Extension(
+#     'fuzzysearch._pymemmem',
+#     sources=['src/fuzzysearch/_pymemmem.c',
+#              'src/fuzzysearch/memmem.c',
+#              'src/fuzzysearch/wordlen_memmem.c'],
+#     include_dirs=['.'],
+# )
 
 
 def run_setup(with_binary=True):
-    ext_modules = [_substitutions_only_module, _common_module,
-                     _generic_search_module, pymemmem_module]
+    ext_modules = [
+        _substitutions_only_module,
+        _common_module,
+        _generic_search_module,
+        # pymemmem_module,
+    ]
     if not with_binary:
         ext_modules = []
 
     setup(
         name='fuzzysearch',
-        version='0.3.0',
+        version='0.5.0',
         description='fuzzysearch is useful for finding approximate subsequence matches',
         long_description=readme + '\n\n' + history,
         author='Tal Einat',
@@ -125,9 +129,10 @@ def run_setup(with_binary=True):
             'Programming Language :: Python :: 2.6',
             'Programming Language :: Python :: 2.7',
             'Programming Language :: Python :: 3',
-            'Programming Language :: Python :: 3.2',
             'Programming Language :: Python :: 3.3',
             'Programming Language :: Python :: 3.4',
+            'Programming Language :: Python :: 3.5',
+            'Programming Language :: Python :: 3.6',
             'Programming Language :: Python :: Implementation :: CPython',
             'Topic :: Software Development :: Libraries :: Python Modules',
         ],
@@ -139,25 +144,22 @@ def try_building_extension():
     try:
         run_setup(True)
     except BuildFailed:
-        def echo(msg=''):
-            sys.stdout.write(msg + '\n')
         line = '=' * 74
         build_ext_warning = 'WARNING: The C extensions could not be ' \
                             'compiled; speedups are not enabled.'
 
-        echo(line)
-        echo(build_ext_warning)
-        echo('Failure information, if any, is above.')
-        echo('Retrying the build without the C extension now.')
-        echo()
+        print(line)
+        print(build_ext_warning)
+        print('Failure information, if any, is above.')
+        print('Retrying the build without the C extension now.')
+        print('')
 
         run_setup(False)
 
-        echo(line)
-        echo(build_ext_warning)
-        echo('Plain-Python installation succeeded.')
-        echo(line)
-
+        print(line)
+        print(build_ext_warning)
+        print('Plain-Python installation succeeded.')
+        print(line)
 
 if not (noexts or is_pypy or is_jython):
     try_building_extension()

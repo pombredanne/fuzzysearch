@@ -4,8 +4,8 @@ from libc.stdlib cimport malloc, free, realloc
 
 cdef extern from "memmem.h":
     int calc_sum(const void *sequence, size_t sequence_len)
-    void *simple_memmem_with_needle_sum(const void *haystack, size_t haystacklen,
-                                        const void *needle, size_t needlelen,
+    char *simple_memmem_with_needle_sum(const char *haystack, size_t haystacklen,
+                                        const char *needle, size_t needlelen,
                                         int needle_sum)
 
 __all__ = [
@@ -19,19 +19,9 @@ cdef struct GenericSearchCandidate:
 
 
 ALLOWED_TYPES = (six.binary_type, bytearray)
-try:
-    from Bio.Seq import Seq
-except ImportError:
-    pass
-else:
-    ALLOWED_TYPES += (Seq,)
 
 
-def c_find_near_matches_generic_linear_programming(subsequence, sequence,
-                                                   max_substitutions,
-                                                   max_insertions,
-                                                   max_deletions,
-                                                   max_l_dist=None):
+def c_find_near_matches_generic_linear_programming(subsequence, sequence, search_params):
     """search for near-matches of subsequence in sequence
 
     This searches for near-matches, where the nearly-matching parts of the
@@ -49,6 +39,8 @@ def c_find_near_matches_generic_linear_programming(subsequence, sequence,
 
     if not subsequence:
         raise ValueError('Given subsequence is empty!')
+
+    max_substitutions, max_insertions, max_deletions, max_l_dist = search_params.unpacked
 
     cdef const char *c_subsequence = subsequence
     cdef const char *c_sequence = sequence
@@ -240,9 +232,7 @@ cdef _c_find_near_matches_generic_linear_programming(
 
 
 
-def c_find_near_matches_generic_ngrams(subsequence, sequence,
-                                       max_substitutions, max_insertions,
-                                       max_deletions, max_l_dist=None):
+def c_find_near_matches_generic_ngrams(subsequence, sequence, search_params):
     """search for near-matches of subsequence in sequence
 
     This searches for near-matches, where the nearly-matching parts of the
@@ -260,6 +250,8 @@ def c_find_near_matches_generic_ngrams(subsequence, sequence,
 
     if not subsequence:
         raise ValueError('Given subsequence is empty!')
+
+    max_substitutions, max_insertions, max_deletions, max_l_dist = search_params.unpacked
 
     # optimization: prepare some often used things in advance
     cdef size_t _subseq_len = len(subsequence)
@@ -294,9 +286,9 @@ def c_find_near_matches_generic_ngrams(subsequence, sequence,
         subseq_sum = calc_sum(c_subsequence + ngram_start, ngram_len)
 
         match_ptr = <char *>simple_memmem_with_needle_sum(
-            <void *>c_sequence + ngram_start,
+            <char *>c_sequence + ngram_start,
             _seq_len - ngram_start,
-            <void *>c_subsequence + ngram_start,
+            <char *>c_subsequence + ngram_start,
             ngram_len,
             subseq_sum)
 
@@ -320,8 +312,8 @@ def c_find_near_matches_generic_ngrams(subsequence, sequence,
                     end=match.end + small_search_start_index,
                 ))
             match_ptr = <char *>simple_memmem_with_needle_sum(
-                <void *>match_ptr + 1, _seq_len - (match_ptr - c_sequence) - 1,
-                <void *>c_subsequence + ngram_start, ngram_len,
-                subseq_sum);
+                <char *>match_ptr + 1, _seq_len - (match_ptr - c_sequence) - 1,
+                <char *>c_subsequence + ngram_start, ngram_len,
+                subseq_sum)
 
     return matches

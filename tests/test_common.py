@@ -2,7 +2,7 @@ from fuzzysearch.common import Match, group_matches, GroupOfMatches, \
     search_exact, count_differences_with_maximum
 from tests.compat import unittest
 
-from six import b, u
+from six import b, u, text_type
 
 
 class TestGroupOfMatches(unittest.TestCase):
@@ -38,7 +38,7 @@ class TestGroupMatches(unittest.TestCase):
 
 
 class TestSearchExactBase(object):
-    def search(self, sequence, subsequence):
+    def search(self, subsequence, sequence, start_index=0, end_index=None):
         raise NotImplementedError
 
     def test_empty_sequence(self):
@@ -71,31 +71,88 @@ class TestSearchExactBase(object):
     def test_endswith(self):
         self.assertEqual(self.search('bcd', 'abcd'), [1])
 
+    @classmethod
+    def get_supported_sequence_types(cls):
+        raise NotImplementedError
+
+    def test_identical(self):
+        # search for a pattern in itself, should match once at index 0
+        for initializer in self.get_supported_sequence_types():
+            pattern = initializer('abc')
+            with self.subTest("search_exact({0!r}, {0!r})".format(pattern)):
+                self.assertEqual(self.search(pattern, pattern), [0])
+
+    def test_subsequence(self):
+        # search for a pattern appearing once at index 4
+        for initializer in self.get_supported_sequence_types():
+            pattern = initializer('abc')
+            sequence = initializer('-ab-abc-ab-')
+            with self.subTest("search_exact({0!r}, {1!r})".format(pattern, sequence)):
+                self.assertEqual(self.search(pattern, sequence), [4])
+
+    def test_multiple_matches(self):
+        # search for a pattern appearing at indexes 1, 5 and 9
+        for initializer in self.get_supported_sequence_types():
+            pattern = initializer('abc')
+            sequence = initializer('-abc-abc-abc-')
+            with self.subTest("search_exact({0!r}, {1!r})".format(pattern, sequence)):
+                self.assertEqual(self.search(pattern, sequence), [1, 5, 9])
+
+    def test_outside_range_limits(self):
+        for initializer in self.get_supported_sequence_types():
+            pattern = initializer('abc')
+            sequence = initializer('-abc-abc-abc')
+            with self.subTest("search_exact({0!r}, {1!r}, {2}, {3})".format(pattern, sequence, 0, 3)):
+                self.assertEqual(self.search(pattern, sequence, 0, 3), [])
+            with self.subTest("search_exact({0!r}, {1!r}, {2}, {3})".format(pattern, sequence, 0, 4)):
+                self.assertEqual(self.search(pattern, sequence, 0, 4), [1])
+            with self.subTest("search_exact({0!r}, {1!r}, {2}, {3})".format(pattern, sequence, 0, 7)):
+                self.assertEqual(self.search(pattern, sequence, 0, 7), [1])
+            with self.subTest("search_exact({0!r}, {1!r}, {2}, {3})".format(pattern, sequence, 0, 8)):
+                self.assertEqual(self.search(pattern, sequence, 0, 8), [1, 5])
+            with self.subTest("search_exact({0!r}, {1!r}, {2}, {3})".format(pattern, sequence, 0, 11)):
+                self.assertEqual(self.search(pattern, sequence, 0, 11), [1, 5])
+            with self.subTest("search_exact({0!r}, {1!r}, {2}, {3})".format(pattern, sequence, 0, 12)):
+                self.assertEqual(self.search(pattern, sequence, 0, 12), [1, 5, 9])
+
+            with self.subTest("search_exact({0!r}, {1!r}, {2})".format(pattern, sequence, 1)):
+                self.assertEqual(self.search(pattern, sequence, 1), [1, 5, 9])
+            with self.subTest("search_exact({0!r}, {1!r}, {2})".format(pattern, sequence, 2)):
+                self.assertEqual(self.search(pattern, sequence, 2), [5, 9])
+            with self.subTest("search_exact({0!r}, {1!r}, {2})".format(pattern, sequence, 5)):
+                self.assertEqual(self.search(pattern, sequence, 5), [5, 9])
+            with self.subTest("search_exact({0!r}, {1!r}, {2})".format(pattern, sequence, 6)):
+                self.assertEqual(self.search(pattern, sequence, 6), [9])
+
+            with self.subTest("search_exact({0!r}, {1!r}, {2}, {3})".format(pattern, sequence, 4, 10)):
+                self.assertEqual(self.search(pattern, sequence, 4, 10), [5])
+
+            with self.subTest("search_exact({0!r}, {1!r}, {2}, {3})".format(pattern, sequence, 3, 7)):
+                self.assertEqual(self.search(pattern, sequence, 3, 7), [])
 
 class TestSearchExact(TestSearchExactBase, unittest.TestCase):
-    def search(self, sequence, subsequence):
-        return list(search_exact(sequence, subsequence))
+    def search(self, subsequence, sequence, start_index=0, end_index=None):
+        return list(search_exact(subsequence, sequence, start_index, end_index))
 
-    def test_bytes(self):
-        text = b('abc')
-        self.assertEqual(self.search(text, text), [0])
+    @classmethod
+    def get_supported_sequence_types(cls):
+        types_to_test = [b, u, list, tuple]
 
-    def test_unicode_identical(self):
-        text = u('abc')
-        self.assertEqual(self.search(text, text), [0])
-
-    def test_unicode_substring(self):
-        pattern = u('\u03A3\u0393')
-        text = u('\u03A0\u03A3\u0393\u0394')
-        self.assertEqual(self.search(pattern, text), [1])
-
-    def test_biopython_Seq(self):
         try:
             from Bio.Seq import Seq
+            from Bio.Alphabet import IUPAC
         except ImportError:
-            raise unittest.SkipTest('Test requires BioPython')
+            pass
         else:
-            self.assertEqual(self.search(Seq('abc'), Seq('abc')), [0])
+            types_to_test.append(Seq)
+            types_to_test.append(
+                lambda text: Seq(text.replace('b', 'g').replace('-', 't'),
+                                 alphabet=IUPAC.unambiguous_dna))
+
+        return types_to_test
+
+    def test_unicode_subsequence(self):
+        self.assertEqual(self.search(u('\u03A3\u0393'), u('\u03A0\u03A3\u0393\u0394')), [1])
 
 
 class TestCountDifferencesWithMaximumBase(object):
@@ -167,9 +224,44 @@ else:
                                                             max_diffs)
 
     class TestSearchExactByteslike(TestSearchExactBase, unittest.TestCase):
-        def search(self, sequence, subsequence):
-            return search_exact_byteslike(b(sequence), b(subsequence))
+        def search(self, subsequence, sequence, start_index=0, end_index=None):
+            if isinstance(subsequence, text_type):
+                try:
+                    subsequence = subsequence.encode('ascii')
+                except UnicodeEncodeError:
+                    raise self.skipTest("skipping test with non-ascii-encodable string for byteslike function")
+            if isinstance(sequence, text_type):
+                try:
+                    sequence = sequence.encode('ascii')
+                except UnicodeEncodeError:
+                    raise self.skipTest("skipping test with non-ascii-encodable string for byteslike function")
 
-        def test_bytes(self):
-            text = b('abc')
-            self.assertEqual(search_exact_byteslike(text, text), [0])
+            if end_index is not None:
+                return search_exact_byteslike(subsequence, sequence, start_index, end_index)
+            else:
+                return search_exact_byteslike(subsequence, sequence, start_index)
+
+        @classmethod
+        def get_supported_sequence_types(cls):
+            types_to_test = [b]
+            return types_to_test
+
+        def test_input_argument_handling(self):
+            self.assertEqual(search_exact_byteslike(b'abc', b'abc'), [0])
+            self.assertEqual(search_exact_byteslike(b'abc', b'abc', 0), [0])
+            self.assertEqual(search_exact_byteslike(b'abc', b'abc', 1), [])
+            self.assertEqual(search_exact_byteslike(b'abc', b'abc', 0, 3), [0])
+            self.assertEqual(search_exact_byteslike(b'abc', b'abc', 0, end_index=3), [0])
+            self.assertEqual(search_exact_byteslike(b'abc', b'abc', end_index=3, start_index=0), [0])
+            self.assertEqual(search_exact_byteslike(subsequence=b'abc', sequence=b'abc',
+                                                    start_index=0, end_index=3), [0])
+            self.assertEqual(search_exact_byteslike(b'abc', b'abc', 0, 4), [0])
+            self.assertEqual(search_exact_byteslike(b'abc', b'abc', 0, -1), [0])
+            self.assertEqual(search_exact_byteslike(b'abc', b'abc', 0, 2), [])
+            self.assertEqual(search_exact_byteslike(b'abc', b'abc', 2, 1), [])
+
+            with self.assertRaises(Exception):
+                search_exact_byteslike(b'abc', subsequence=b'abc')
+
+            with self.assertRaises(Exception):
+                search_exact_byteslike(b'abc', b'abc', 0, start_index=0)
