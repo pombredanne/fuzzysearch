@@ -1,9 +1,11 @@
 from collections import namedtuple
-from fuzzysearch.common import Match, search_exact, \
-    group_matches, get_best_match_in_group
 
-import six
-from six.moves import xrange
+import attr
+
+from fuzzysearch.common import FuzzySearchBase, Match, \
+    consolidate_overlapping_matches
+from fuzzysearch.compat import text_type, xrange
+from fuzzysearch.search_exact import search_exact
 
 
 __all__ = [
@@ -48,11 +50,7 @@ def find_near_matches_generic(subsequence, sequence, search_params):
 
     # use the linear programming search method
     else:
-        matches = find_near_matches_generic_linear_programming(subsequence, sequence, search_params)
-
-        match_groups = group_matches(matches)
-        best_matches = [get_best_match_in_group(group) for group in match_groups]
-        return sorted(best_matches)
+        return find_near_matches_generic_linear_programming(subsequence, sequence, search_params)
 
 
 def _find_near_matches_generic_linear_programming(subsequence, sequence, search_params):
@@ -184,8 +182,8 @@ except ImportError:
 else:
     def find_near_matches_generic_linear_programming(subsequence, sequence, search_params):
         if not (
-            isinstance(subsequence, six.text_type) or
-            isinstance(sequence, six.text_type)
+            isinstance(subsequence, text_type) or
+            isinstance(sequence, text_type)
         ):
             try:
                 for match in c_fnm_generic_lp(subsequence, sequence, search_params):
@@ -212,17 +210,7 @@ def find_near_matches_generic_ngrams(subsequence, sequence, search_params):
     if not subsequence:
         raise ValueError('Given subsequence is empty!')
 
-    matches = list(_find_near_matches_generic_ngrams(subsequence, sequence, search_params))
-
-    # don't return overlapping matches; instead, group overlapping matches
-    # together and return the best match from each group
-    match_groups = group_matches(matches)
-    best_matches = [get_best_match_in_group(group) for group in match_groups]
-    return sorted(best_matches)
-
-
-def _find_near_matches_generic_ngrams(subsequence, sequence, search_params):
-    max_substitutions, max_insertions, max_deletions, max_l_dist = search_params.unpacked
+    max_l_dist = search_params.max_l_dist
 
     # optimization: prepare some often used things in advance
     subseq_len = len(subsequence)
@@ -242,7 +230,7 @@ def _find_near_matches_generic_ngrams(subsequence, sequence, search_params):
                 subsequence, sequence[max(0, index - ngram_start - max_l_dist):index - ngram_start + subseq_len + max_l_dist],
                 search_params,
             ):
-                yield match._replace(
+                yield attr.evolve(match,
                     start=match.start + max(0, index - ngram_start - max_l_dist),
                     end=match.end + max(0, index - ngram_start - max_l_dist),
                 )
@@ -259,9 +247,26 @@ def has_near_match_generic_ngrams(subsequence, sequence, search_params):
     * and the maximum allowed number of character deletions
     * the total number of substitutions, insertions and deletions
     """
-    if not subsequence:
-        raise ValueError('Given subsequence is empty!')
-
-    for match in _find_near_matches_generic_ngrams(subsequence, sequence, search_params):
+    for match in find_near_matches_generic_ngrams(subsequence, sequence, search_params):
         return True
     return False
+
+
+class GenericSearch(FuzzySearchBase):
+    @classmethod
+    def search(cls, subsequence, sequence, search_params):
+        for match in find_near_matches_generic(subsequence, sequence,
+                                               search_params):
+            yield match
+
+    @classmethod
+    def consolidate_matches(cls, matches):
+        return consolidate_overlapping_matches(matches)
+
+    @classmethod
+    def extra_items_for_chunked_search(cls, subsequence, search_params):
+        return max(
+            x for x in [search_params.max_l_dist,
+                        search_params.max_insertions]
+            if x is not None
+        )

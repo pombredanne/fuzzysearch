@@ -1,6 +1,6 @@
-from tests.compat import unittest
+from tests.compat import b, unittest
 from tests.test_levenshtein import TestFindNearMatchesLevenshteinBase
-from fuzzysearch.common import Match, get_best_match_in_group, group_matches, LevenshteinSearchParams
+from fuzzysearch.common import Match, get_best_match_in_group, group_matches, LevenshteinSearchParams, consolidate_overlapping_matches
 from tests.test_substitutions_only import TestSubstitionsOnlyBase, \
     TestHasNearMatchSubstitionsOnlyBase
 from fuzzysearch.generic_search import \
@@ -9,33 +9,36 @@ from fuzzysearch.generic_search import \
     has_near_match_generic_ngrams as hnm_generic_ngrams, \
     find_near_matches_generic
 
-from six import b
-
 
 class TestGenericSearchLpAsLevenshtein(TestFindNearMatchesLevenshteinBase,
                                        unittest.TestCase):
     def search(self, subsequence, sequence, max_l_dist):
-        return [
-            get_best_match_in_group(group)
-            for group in group_matches(
-                fnm_generic_lp(subsequence, sequence,
-                               LevenshteinSearchParams(max_l_dist, max_l_dist, max_l_dist, max_l_dist))
-            )
-        ]
+        search_params = LevenshteinSearchParams(max_l_dist, max_l_dist,
+                                                max_l_dist, max_l_dist)
+        return consolidate_overlapping_matches(
+            fnm_generic_lp(subsequence, sequence, search_params)
+        )
 
 
 class TestGenericSearchNgramsAsLevenshtein(TestFindNearMatchesLevenshteinBase,
                                            unittest.TestCase):
     def search(self, subsequence, sequence, max_l_dist):
-        return fnm_generic_ngrams(subsequence, sequence,
-                                  LevenshteinSearchParams(max_l_dist, max_l_dist, max_l_dist, max_l_dist))
+        if max_l_dist >= len(subsequence):
+            self.skipTest("avoiding calling fnm_generic_ngrams() " +
+                          "with max_l_dist >= len(subsequence)")
+        search_params = LevenshteinSearchParams(max_l_dist, max_l_dist,
+                                                max_l_dist, max_l_dist)
+        return consolidate_overlapping_matches(
+            fnm_generic_ngrams(subsequence, sequence, search_params)
+        )
 
 
 class TestGenericSearchLpAsSubstitutionsOnly(TestSubstitionsOnlyBase,
                                              unittest.TestCase):
     def search(self, subsequence, sequence, max_subs):
+        search_params = LevenshteinSearchParams(max_subs, 0, 0, max_subs)
         return list(
-            fnm_generic_lp(subsequence, sequence, LevenshteinSearchParams(max_subs, 0, 0, max_subs))
+            fnm_generic_lp(subsequence, sequence, search_params)
         )
 
     def expectedOutcomes(self, search_results, expected_outcomes, *args, **kwargs):
@@ -45,8 +48,13 @@ class TestGenericSearchLpAsSubstitutionsOnly(TestSubstitionsOnlyBase,
 class TestGenericSearchNgramsAsSubstitutionsOnly(TestSubstitionsOnlyBase,
                                                  unittest.TestCase):
     def search(self, subsequence, sequence, max_subs):
-        return fnm_generic_ngrams(subsequence, sequence,
-                                  LevenshteinSearchParams(max_subs, 0, 0, max_subs))
+        if max_subs >= len(subsequence):
+            self.skipTest("avoiding calling fnm_generic_ngrams() " +
+                          "with max_subs >= len(subsequence)")
+        search_params = LevenshteinSearchParams(max_subs, 0, 0, max_subs)
+        return consolidate_overlapping_matches(
+            fnm_generic_ngrams(subsequence, sequence, search_params)
+        )
 
     def expectedOutcomes(self, search_results, expected_outcomes, *args, **kwargs):
         best_from_grouped_results = [
@@ -215,21 +223,6 @@ class TestGenericSearchBase(object):
             [Match(start=2, end=5, dist=0)],
         )
 
-
-class TestGenericSearch(TestGenericSearchBase, unittest.TestCase):
-    def search(self, pattern, sequence, max_subs, max_ins, max_dels,
-               max_l_dist=None):
-        return list(find_near_matches_generic(pattern, sequence,
-                                              LevenshteinSearchParams(max_subs, max_ins, max_dels, max_l_dist)))
-
-    def expectedOutcomes(self, search_results, expected_outcomes, *args, **kwargs):
-        best_from_grouped_exepected_outcomes = [
-            get_best_match_in_group(group)
-            for group in group_matches(expected_outcomes)
-        ]
-        return self.assertEqual(search_results,
-                                best_from_grouped_exepected_outcomes)
-
     def test_valid_none_arguments_with_defined_max_l_dist(self):
         # expect no exception when max_l_dist is not None and some or all other
         # values are None
@@ -274,6 +267,21 @@ class TestGenericSearch(TestGenericSearchBase, unittest.TestCase):
                     max_subs, max_ins, max_dels)):
                 with self.assertRaises(ValueError):
                     self.search(b('a'), b('b'), max_subs, max_ins, max_dels, None)
+
+
+class TestGenericSearch(TestGenericSearchBase, unittest.TestCase):
+    def search(self, pattern, sequence, max_subs, max_ins, max_dels,
+               max_l_dist=None):
+        search_params = LevenshteinSearchParams(max_subs, max_ins,
+                                                max_dels, max_l_dist)
+        return consolidate_overlapping_matches(
+            find_near_matches_generic(pattern, sequence, search_params)
+        )
+
+    def expectedOutcomes(self, search_results, expected_outcomes, *args, **kwargs):
+        consolidated_expected_outcomes = \
+            consolidate_overlapping_matches(expected_outcomes)
+        return self.assertEqual(search_results, consolidated_expected_outcomes)
 
     def test_non_string_sequences(self):
         supported_types = [list, tuple]
@@ -368,8 +376,11 @@ class TestNgramsBase(object):
 class TestGenericSearchLp(TestGenericSearchBase, unittest.TestCase):
     def search(self, pattern, sequence, max_subs, max_ins, max_dels,
                max_l_dist=None):
-        return list(fnm_generic_lp(pattern, sequence,
-                                   LevenshteinSearchParams(max_subs, max_ins, max_dels, max_l_dist)))
+        search_params = LevenshteinSearchParams(max_subs, max_ins,
+                                                max_dels, max_l_dist)
+        return list(
+            fnm_generic_lp(pattern, sequence, search_params)
+        )
 
     def expectedOutcomes(self, search_results, expected_outcomes, *args, **kwargs):
         self.assertEqual(search_results, expected_outcomes, *args, **kwargs)
@@ -400,24 +411,26 @@ class TestGenericSearchLp(TestGenericSearchBase, unittest.TestCase):
             ))
         )
 
+
 class TestGenericSearchNgrams(TestGenericSearchBase,
                               TestNgramsBase,
                               unittest.TestCase):
-    def search(self, pattern, sequence, max_subs, max_ins, max_dels,
-               max_l_dist=None):        return fnm_generic_ngrams(pattern, sequence,
-                                  LevenshteinSearchParams(max_subs, max_ins, max_dels, max_l_dist))
+    def search(self, pattern, sequence, max_subs, max_ins, max_dels, max_l_dist=None):
+        search_params = LevenshteinSearchParams(max_subs, max_ins,
+                                                max_dels, max_l_dist)
+        return consolidate_overlapping_matches(
+            fnm_generic_ngrams(pattern, sequence, search_params)
+        )
 
     def expectedOutcomes(self, search_results, expected_outcomes, *args, **kwargs):
-        best_from_grouped_results = [
+        consolidated_results = [
             get_best_match_in_group(group)
             for group in group_matches(search_results)
         ]
-        best_from_grouped_exepected_outcomes = [
-            get_best_match_in_group(group)
-            for group in group_matches(expected_outcomes)
-        ]
-        return self.assertEqual(best_from_grouped_results,
-                                best_from_grouped_exepected_outcomes,
+        consolidated_expected_outcomes = \
+            consolidate_overlapping_matches(expected_outcomes)
+        return self.assertEqual(consolidated_results,
+                                consolidated_expected_outcomes,
                                 *args, **kwargs)
 
     def test_missing_second_item_complex(self):

@@ -6,7 +6,8 @@ __all__ = [
 
 import array
 
-from fuzzysearch.common import Ngram, search_exact, Match
+from fuzzysearch.common import Match
+from fuzzysearch.search_exact import search_exact
 
 
 def _expand(subsequence, sequence, max_substitutions, max_insertions,
@@ -44,8 +45,10 @@ def find_near_matches_no_deletions_ngrams(subsequence, sequence, search_params):
     This searches for near-matches, where the nearly-matching parts of the
     sequence must meet the following limitations (relative to the subsequence):
 
-    * the number of character substitutions must be less than max_substitutions
-    * no deletions or insertions are allowed
+    * the maximum allowed number of character substitutions
+    * the maximum allowed number of new characters inserted
+    * no deletions are allowed
+    * the total number of substitutions, insertions and deletions
     """
     if not subsequence:
         raise ValueError('Given subsequence is empty!')

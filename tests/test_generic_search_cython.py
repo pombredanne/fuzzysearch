@@ -1,11 +1,9 @@
-from tests.compat import unittest
+from tests.compat import b, unittest
 from tests.utils import skip_if_arguments_arent_byteslike
 from tests.test_levenshtein import TestFindNearMatchesLevenshteinBase
 from fuzzysearch.common import Match, get_best_match_in_group, group_matches, LevenshteinSearchParams
 from tests.test_substitutions_only import TestSubstitionsOnlyBase
 from tests.test_generic_search import TestGenericSearchBase
-
-from six import b
 
 
 try:
@@ -32,6 +30,9 @@ else:
         TestFindNearMatchesLevenshteinBase, unittest.TestCase):
         @skip_if_arguments_arent_byteslike
         def search(self, subsequence, sequence, max_l_dist):
+            if max_l_dist >= len(subsequence):
+                self.skipTest("avoiding calling c_fnm_generic_ngrams() " +
+                              "with max_l_dist >= len(subsequence)")
             return [
                 get_best_match_in_group(group)
                 for group in group_matches(
@@ -62,6 +63,9 @@ else:
                                                      unittest.TestCase):
         @skip_if_arguments_arent_byteslike
         def search(self, subsequence, sequence, max_subs):
+            if max_subs >= len(subsequence):
+                self.skipTest("avoiding calling c_fnm_generic_ngrams() " +
+                              "with max_subs >= len(subsequence)")
             return [
                 get_best_match_in_group(group)
                 for group in group_matches(

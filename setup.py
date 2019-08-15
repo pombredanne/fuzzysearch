@@ -84,6 +84,11 @@ _generic_search_module = Extension(
              'src/fuzzysearch/memmem.c'],
     include_dirs=['.'],
 )
+_levenshtein_ngrams_module = Extension(
+    'fuzzysearch._levenshtein_ngrams',
+    sources=['src/fuzzysearch/_levenshtein_ngrams.c'],
+    include_dirs=['.'],
+)
 # pymemmem_module = Extension(
 #     'fuzzysearch._pymemmem',
 #     sources=['src/fuzzysearch/_pymemmem.c',
@@ -98,6 +103,7 @@ def run_setup(with_binary=True):
         _substitutions_only_module,
         _common_module,
         _generic_search_module,
+        _levenshtein_ngrams_module,
         # pymemmem_module,
     ]
     if not with_binary:
@@ -105,7 +111,7 @@ def run_setup(with_binary=True):
 
     setup(
         name='fuzzysearch',
-        version='0.5.0',
+        version='0.6.2',
         description='fuzzysearch is useful for finding approximate subsequence matches',
         long_description=readme + '\n\n' + history,
         author='Tal Einat',
@@ -114,9 +120,7 @@ def run_setup(with_binary=True):
         packages=['fuzzysearch'],
         package_dir={'': 'src'},
         ext_modules=ext_modules,
-        install_requires=[
-            'six',
-        ],
+        install_requires=['attrs'],
         license='MIT',
         keywords='fuzzysearch',
         classifiers=[
@@ -126,13 +130,12 @@ def run_setup(with_binary=True):
             'Natural Language :: English',
             'Operating System :: MacOS :: MacOS X',
             'Programming Language :: Python :: 2',
-            'Programming Language :: Python :: 2.6',
             'Programming Language :: Python :: 2.7',
             'Programming Language :: Python :: 3',
-            'Programming Language :: Python :: 3.3',
             'Programming Language :: Python :: 3.4',
             'Programming Language :: Python :: 3.5',
             'Programming Language :: Python :: 3.6',
+            'Programming Language :: Python :: 3.7',
             'Programming Language :: Python :: Implementation :: CPython',
             'Topic :: Software Development :: Libraries :: Python Modules',
         ],

@@ -1,6 +1,6 @@
-===============================
+===========
 fuzzysearch
-===============================
+===========
 
 .. image:: https://img.shields.io/pypi/v/fuzzysearch.svg?style=flat
     :target: https://pypi.python.org/pypi/fuzzysearch
@@ -34,35 +34,50 @@ fuzzysearch
     :target: https://pypi.python.org/pypi/fuzzysearch/
     :alt: License
 
-fuzzysearch is a Python library for fuzzy substring searches. It implements efficient
-ad-hoc searching for approximate sub-sequences. Matching is done using a generalized
-Levenshtein Distance metric, with configurable parameters.
+**Easy Python fuzzy search that just works, fast!**
+
+.. code:: python
+
+    >>> find_near_matches('PATTERN', '---PATERN---', max_l_dist=1)
+    [Match(start=3, end=9, dist=1)]
+
+* Approximate sub-string searches
+
+* Two simple functions to use: one for in-memory data and one for files
+
+  * Fastest search algorithm is chosen automatically
+
+* Levenshtein Distance metric with configurable parameters
+
+  * Separately configure the max. allowed distance, substitutions, deletions
+    and insertions
+
+* Advanced algorithms with optional C and Cython optimizations
+
+* Properly handles Unicode; special optimizations for binary data
+
+* Extensively tested
 
 * Free software: `MIT license <LICENSE>`_
-* Documentation: http://fuzzysearch.rtfd.org.
+
+For more info, see the `documentation <http://fuzzysearch.rtfd.org>`_.
+
 
 Installation
 ------------
-Just install using pip::
+
+.. code::
 
     $ pip install fuzzysearch
 
-Features
---------
+This will work even if installing the C and Cython extensions fails, using
+pure-Python fallbacks.
 
-* Fuzzy sub-sequence search: Find parts of a sequence which match a given
-  sub-sequence.
-* Easy to use: A single function to call which returns a list of matches.
-* Set a maximum Levenshtein Distance for matches, including individual limits
-  for the number of substitutions, insertions and/or deletions allowed for
-  near-matches.
-* Includes optimized implementations for specific use-cases, e.g. allowing
-  only substitutions.
 
-Simple Examples
----------------
-Just call `find_near_matches()` with the sequence to search, the sub-sequence
-you're looking for, and the matching parameters:
+Usage
+-----
+Just call ``find_near_matches()`` with the sub-sequence you're looking for,
+the sequence to search, and the matching parameters:
 
 .. code:: python
 
@@ -70,6 +85,23 @@ you're looking for, and the matching parameters:
     # search for 'PATTERN' with a maximum Levenshtein Distance of 1
     >>> find_near_matches('PATTERN', '---PATERN---', max_l_dist=1)
     [Match(start=3, end=9, dist=1)]
+
+To search in a file, use ``find_near_matches_in_file()`` similarly:
+
+.. code:: python
+
+    >>> from fuzzysearch import find_near_matches_in_file
+    >>> with open('data_file', 'rb') as f:
+    ...     find_near_matches_in_file(b'PATTERN', f, max_l_dist=1)
+    [Match(start=3, end=9, dist=1)]
+
+
+Examples
+--------
+
+*fuzzysearch* is great for ad-hoc searches of genetic data, such as DNA or
+protein sequences, before reaching for "heavier", domain-specific tools like
+BioPython:
 
 .. code:: python
 
@@ -82,26 +114,47 @@ you're looking for, and the matching parameters:
     >>> find_near_matches(subsequence, sequence, max_l_dist=2)
     [Match(start=3, end=24, dist=1)]
 
-Advanced Search Criteria
-------------------------
-The search function supports four possible match criteria, which may be supplied in any combination:
+BioPython sequences are also supported:
 
-* maximum Levenshtein distance
+.. code:: python
+
+    >>> from Bio.Seq import Seq
+    >>> from Bio.Alphabet import IUPAC
+    >>> sequence = Seq('''\
+    GACTAGCACTGTAGGGATAACAATTTCACACAGGTGGACAATTACATTGAAAATCACAGATTGGTCACACACACA
+    TTGGACATACATAGAAACACACACACATACATTAGATACGAACATAGAAACACACATTAGACGCGTACATAGACA
+    CAAACACATTGACAGGCAGTTCAGATGATGACGCCCGACTGATACTCGCGTAGTCGTGGGAGGCAAGGCACACAG
+    GGGATAGG''', IUPAC.unambiguous_dna)
+    >>> subsequence = Seq('TGCACTGTAGGGATAACAAT', IUPAC.unambiguous_dna)
+    >>> find_near_matches(subsequence, sequence, max_l_dist=2)
+    [Match(start=3, end=24, dist=1)]
+
+
+Matching Criteria
+-----------------
+The search function supports four possible match criteria, which may be
+supplied in any combination:
+
+* maximum Levenshtein distance (``max_l_dist``)
+
 * maximum # of subsitutions
-* maximum # of deletions (elements appearing in the pattern search for, which are skipped in the matching sub-sequence)
-* maximum # of insertions (elements added in the matching sub-sequence which don't appear in the pattern search for)
 
-Not supplying a criterion means that there is no limit for it. For this reason, one must always supply `max_l_dist` and/or all other criteria.
+* maximum # of deletions ("delete" = skip a character in the sub-sequence)
+
+* maximum # of insertions ("insert" = skip a character in the sequence)
+
+Not supplying a criterion means that there is no limit for it. For this reason,
+one must always supply ``max_l_dist`` and/or all other criteria.
 
 .. code:: python
 
     >>> find_near_matches('PATTERN', '---PATERN---', max_l_dist=1)
     [Match(start=3, end=9, dist=1)]
-    
+
     # this will not match since max-deletions is set to zero
     >>> find_near_matches('PATTERN', '---PATERN---', max_l_dist=1, max_deletions=0)
     []
-    
+
     # note that a deletion + insertion may be combined to match a substution
     >>> find_near_matches('PATTERN', '---PAT-ERN---', max_deletions=1, max_insertions=1, max_substitutions=0)
     [Match(start=3, end=10, dist=1)] # the Levenshtein distance is still 1
@@ -109,3 +162,13 @@ Not supplying a criterion means that there is no limit for it. For this reason, 
     # ... but deletion + insertion may also match other, non-substitution differences
     >>> find_near_matches('PATTERN', '---PATERRN---', max_deletions=1, max_insertions=1, max_substitutions=0)
     [Match(start=3, end=10, dist=2)]
+
+
+When to Use Other Tools
+-----------------------
+
+* Use case: Search through a list of strings for almost-exactly matching
+  strings. For example, searching through a list of names for possible slight
+  variations of a certain name.
+
+  Suggestion: Consider using `fuzzywuzzy <https://github.com/seatgeek/fuzzywuzzy>`_.

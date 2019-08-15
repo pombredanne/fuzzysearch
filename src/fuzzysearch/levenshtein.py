@@ -1,10 +1,10 @@
 from collections import namedtuple
 
-from fuzzysearch.common import Match, group_matches, get_best_match_in_group, \
-    search_exact
+from fuzzysearch.common import FuzzySearchBase, Match, \
+    consolidate_overlapping_matches
+from fuzzysearch.compat import xrange
 from fuzzysearch.levenshtein_ngram import find_near_matches_levenshtein_ngrams
-
-from six.moves import xrange
+from fuzzysearch.search_exact import search_exact
 
 
 def find_near_matches_levenshtein(subsequence, sequence, max_l_dist):
@@ -33,12 +33,9 @@ def find_near_matches_levenshtein(subsequence, sequence, max_l_dist):
                                                     max_l_dist)
 
     else:
-        matches = find_near_matches_levenshtein_linear_programming(subsequence,
-                                                                   sequence,
-                                                                   max_l_dist)
-        match_groups = group_matches(matches)
-        best_matches = [get_best_match_in_group(group) for group in match_groups]
-        return sorted(best_matches)
+        return find_near_matches_levenshtein_linear_programming(subsequence,
+                                                                sequence,
+                                                                max_l_dist)
 
 
 Candidate = namedtuple('Candidate', ['start', 'subseq_index', 'dist'])
@@ -57,10 +54,16 @@ def find_near_matches_levenshtein_linear_programming(subsequence, sequence,
     if not subsequence:
         raise ValueError('Given subsequence is empty!')
 
+    subseq_len = len(subsequence)
+
+    if max_l_dist >= subseq_len:
+        for index in xrange(len(sequence) + 1):
+            yield Match(index, index, subseq_len)
+        return
+
     # optimization: prepare some often used things in advance
     char2first_subseq_index = make_char2first_subseq_index(subsequence,
                                                            max_l_dist)
-    subseq_len = len(subsequence)
 
     candidates = []
     for index, char in enumerate(sequence):
@@ -139,3 +142,19 @@ def find_near_matches_levenshtein_linear_programming(subsequence, sequence,
         dist = cand.dist + subseq_len - cand.subseq_index
         if dist <= max_l_dist:
             yield Match(cand.start, len(sequence), dist)
+
+
+class LevenshteinSearch(FuzzySearchBase):
+    @classmethod
+    def search(cls, subsequence, sequence, search_params):
+        for match in find_near_matches_levenshtein(subsequence, sequence,
+                                                   search_params.max_l_dist):
+            yield match
+
+    @classmethod
+    def consolidate_matches(cls, matches):
+        return consolidate_overlapping_matches(matches)
+
+    @classmethod
+    def extra_items_for_chunked_search(cls, subsequence, search_params):
+        return search_params.max_l_dist
